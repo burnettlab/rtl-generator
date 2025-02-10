@@ -1,0 +1,7 @@
+# Python modules
+*__pycache__
+.venv
+
+# Development directories
+/dev
+.vscode
