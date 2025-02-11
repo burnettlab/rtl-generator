@@ -1,8 +1,15 @@
 """
 Handle formatting of the generated RTL code
 """
+import re
 from typing import Dict
 
+
+def get_pretty_name(name: str) -> str:
+    """
+    Convert a snake_case name to a pretty name
+    """
+    return " ".join(re.split(r"[\W_]+", name)).title()
 
 def format_rtl(rtl_code: str) -> str:
     '''
@@ -17,7 +24,7 @@ def format_rtl(rtl_code: str) -> str:
     return formatted_rtl
 
 
-def indent_line(line: str, spaces: Dict[str: int]={'indent_amt': 0}) -> str:
+def indent_line(line: str, spaces: Dict[str, int]={'indent_amt': 0}) -> str:
     '''
     Automatically indent lines in the generated RTL code
 

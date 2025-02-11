@@ -15,9 +15,17 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
 ]
-license = "GNU GPLv3"
+license = "MIT"
 license-files = ["LICEN[CS]E*"]
+dependencies = [
+	"prettytable==3.14.0",
+	"PyYAML==6.0.2",
+	"wcwidth==0.2.13"
+]
 
 [project.urls]
 Homepage = "https://github.com/brandonhippe/rtl_generator"
 Issues = "https://github.com/brandonhippe/rtl_generator/issues"
+
+[project.scripts]
+gen-rtl = "rtl_gen:main"

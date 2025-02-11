@@ -3,14 +3,13 @@ Handle all things related to arguments
 """
 import argparse
 import builtins
-import os
-import re
-import sys
-from importlib import import_module
 from pathlib import Path
 from typing import List
 
 import yaml
+
+from .heirarchy import get_subdirs
+from .format import get_pretty_name
 
 
 def get_arguments(existing_vars: dict, arglist: List[str]) -> None:
@@ -35,25 +34,22 @@ def add_args(rtl_name: str, pretty_rtl_name: str, proj_path: Path, parser: argpa
     if parser is None:
         parser = argparse.ArgumentParser(description=f"Generate {pretty_rtl_name} RTL code")
 
-        for arg, arg_info in args.items():
-            if 'type' in arg_info:
-                arg_info['type'] = getattr(builtins, arg_info['type'])
-            try:
-                parser.add_argument(f"--{arg}", **arg_info)
-            except argparse.ArgumentError:
-                pass
+    for arg, arg_info in args.items():
+        if 'type' in arg_info:
+            arg_info['type'] = getattr(builtins, arg_info['type'])
+        try:
+            parser.add_argument(f"--{arg}", **arg_info)
+        except argparse.ArgumentError:
+            pass
 
-    parser.add_argument(f"--{rtl_name}_output", type=str, help=f"{pretty_rtl_name} Output file path", default=f"{rtl_name}.sv")
+    parser.add_argument(f"--{rtl_name}_output", type=str, help=f"{pretty_rtl_name} Output file path", default=str(Path(proj_path, f"{rtl_name}.sv")))
 
-    for folder in [d for d in os.listdir() if os.path.isdir(d) and not (d in ['sim_build', 'models'] or re.search(r"__$", d))]:
-        folder_path = os.path.join(proj_path, folder)
-        # generator_generator(folder, folder_path, "sv")
-
-        os.chdir(folder_path)
-        submod_name = f"{folder}.gen_{folder}"
-        import_module(submod_name, submod_name.split('.')[-1])
-        sub_mod = sys.modules[submod_name]
-        sub_mod.add_args(folder, " ".join(folder.split("_")).title(), folder_path, parser)
-        os.chdir(proj_path)
+    available_submods = get_subdirs(proj_path)
+    while available_submods:
+        submod_path = available_submods.pop()
+        submod_name = submod_path.name
+        pretty_submod_name = get_pretty_name(submod_name)
+        parser.add_argument(f"--{submod_name}_output", type=str, help=f"{pretty_submod_name} Output file path", default=str(Path(submod_path, f"{submod_name}.sv")))
+        available_submods.extend(get_subdirs(submod_path))
     
     return parser
