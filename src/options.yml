@@ -10,7 +10,7 @@
 # 2. Variables
 # 3. Functions
 # The script will throw an error if a key is not found in any of the above locations
-replace_includes:
-  help: "Replace include statements with the contents of the file\n\
-    If false, the include statement will be left in the file, and the included file will be generated separately"
-  action: store_true
+# These keys are also used to generate the CLI interface
+# Sub-keys are passed as keyword arguments to the ArgumentParser constructor
+
+# Arguments

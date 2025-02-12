@@ -11,6 +11,7 @@ def get_pretty_name(name: str) -> str:
     """
     return " ".join(re.split(r"[\W_]+", name)).title()
 
+
 def format_rtl(rtl_code: str) -> str:
     '''
     Format the generated RTL code to be more readable
