@@ -18,10 +18,10 @@ classifiers = [
 license = "MIT"
 license-files = ["LICEN[CS]E*"]
 dependencies = [
-	"prettytable==3.14.0",
-	"PyYAML==6.0.2",
-	"RapidFuzz==3.12.1",
-	"wcwidth==0.2.13"
+	"prettytable~=3.14.0",
+	"PyYAML~=6.0.2",
+	"RapidFuzz~=3.12.1",
+	"wcwidth~=0.2.13"
 ]
 
 [project.urls]
@@ -30,3 +30,5 @@ Issues = "https://github.com/brandonhippe/rtl-generator/issues"
 
 [project.scripts]
 gen-rtl = "rtl_gen:main"
+
+[tool.hatch.build.targets.sdist]

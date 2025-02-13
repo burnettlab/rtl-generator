@@ -6,3 +6,6 @@ requirements.txt
 # Development directories
 /dev
 .vscode
+
+# Distribution directories
+dist
