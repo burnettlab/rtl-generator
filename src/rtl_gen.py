@@ -1,6 +1,5 @@
 import argparse
 import os
-import re
 import subprocess
 import sys
 from importlib import import_module
@@ -22,7 +21,7 @@ def run_generator(rtl_name: str, cli_args: argparse.Namespace, mod_str: str, **k
     except ImportError:
         mod_vars = {}
         
-    return rtl_generator(rtl_name, cli_args, mod_vars, **kwargs) + "\n"
+    return rtl_generator(rtl_name, cli_args, mod_vars, **kwargs)
 
 @dataclass
 class setup:
@@ -44,7 +43,7 @@ class setup:
 
         with open(Path(Path(__file__).parent, "top_level.py")) as f:
             top_level_py = f.read()
-        top_level_py = fill_in_template(top_level_py, None, vars(), match_regex=re.compile(r"#{\((\w+?)\)}"))
+        top_level_py = fill_in_template(top_level_py, None, vars())
         with open(Path(proj_path, f"gen_{rtl_name}.py"), "w") as f:
             f.write(top_level_py)
         
@@ -78,7 +77,7 @@ class update:
             if not gen_path.exists():
                 with open(Path(Path(__file__).parent, "sub_level.py")) as f:
                     sub_level_py = f.read()
-                sub_level_py = fill_in_template(sub_level_py, None, vars(), match_regex=re.compile(r"#{\((\w+?)\)}"))
+                sub_level_py = fill_in_template(sub_level_py, None, vars())
                 with open(gen_path, "w") as f:
                     f.write(sub_level_py)
 

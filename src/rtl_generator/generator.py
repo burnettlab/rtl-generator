@@ -5,20 +5,42 @@ Handle RTL generation
 import argparse
 import os
 import re
+from itertools import product
+from pathlib import Path
 
 import prettytable
+from rapidfuzz import fuzz
 
-from .arguments import get_arguments
-from .format import get_pretty_name
+from .arguments import update_used_args
+from .format import format_rtl, get_pretty_name
 
+PRESERVING_REGEXES = [
+    # These regexes preserve the parameter tag that identifies the parameter
+    re.compile(r"//[^\n]*#{\((?P<parameter_name>\w*)\)}\s*(?P<replace>.*?)\s*//[^\n]*#{/\((?P=parameter_name)\)}", re.MULTILINE | re.DOTALL),
+    re.compile(r"/\*[^\n]*#{\((?P<parameter_name>\w*)\)}[^\n]*\*/\s*(?P<replace>.*?)\s*/\*[^\n]*#{/\((?P=parameter_name)\)}[^\n]*\*/"),
+]
 
-# DEFAULT_REGEX = re.compile(r"//!? .*?<(\w*)\b[^>]*>(.*?)// </\1>", re.MULTILINE | re.DOTALL)
-DEFAULT_REGEX = re.compile(r"#{\((\w+?)\)}")
+DESTROYING_REGEXES = [
+    # These regexes destroy the parameter tag that identifies the parameter
+    re.compile(r"(?P<replace>#{\((?P<parameter_name>\w+?)\)})"),
+]
 
 #####################################################################################################
 # Base methods needed for all RTL generators                                                        #
 #####################################################################################################
-def fill_in_template(template: str, args: argparse.Namespace | None, scope: dict, match_regex: re.Pattern=DEFAULT_REGEX) -> str:
+def make_substitution(template: str, context: str, replace_str: str, replace_with: str) -> str:
+    """
+    Make a substitution in the context string.
+    """
+    assert template
+    if not context or not replace_str or not replace_with:
+        return template
+    
+    replaced = context.replace(replace_str, replace_with, 1)
+    return template.replace(context, replaced, 1)
+
+
+def fill_in_template(template: str, args: argparse.Namespace | None, scope: dict) -> str:
     """
     Fill in the template with the arguments and variables.
 
@@ -32,49 +54,61 @@ def fill_in_template(template: str, args: argparse.Namespace | None, scope: dict
     if 'used_args' not in scope:
         scope['used_args'] = set()
 
-    while key_match := match_regex.search(template):
-        if len(key_match.groups()) > 2:
-            start, end = key_match.span(2)
-        else:
-            start, end = key_match.span()
-        indent_amt = start - template.rfind('\n', 0, start) - 1
+    filled_in = template[:]
+    for match_regex, preserving in list(product(PRESERVING_REGEXES, (True,))) + list(product(DESTROYING_REGEXES, (False,))):
+        for key_match in match_regex.finditer(template):
+            context = key_match.group()
+            parameter_name = key_match.group("parameter_name")
+            replace_str = key_match.group("replace")
 
-        get_arguments(scope, [key_match.group(1)])
-        if key_match.group(1) in scope:
-            # Key is a variable or function in this file
-            if callable(scope[key_match.group(1)]):
-                replace_with = scope[key_match.group(1)](scope)
-            else:
-                replace_with = str(scope[key_match.group(1)])
-        else:
-            # This will raise an error if the key is not a defined variable or a function in the global scope
-            try:
-                if callable(globals()[key_match.group(1)]):
-                    replace_with = globals()[key_match.group(1)](scope)
+            if parameter_name in scope['used_args'] and not preserving:
+                continue
+            
+            update_used_args(scope, [parameter_name])
+            if parameter_name in scope:
+                # Key is a variable or function in this file
+                if callable(scope[parameter_name]):
+                    scope.update(locals())
+                    replace_with = scope[parameter_name](scope)
                 else:
-                    replace_with = str(globals()[key_match.group(1)])
-            except KeyError:
-                raise KeyError(f"No way to fill template key: {key_match.group(1)}")
+                    replace_with = str(scope[parameter_name])
+            else:
+                # This will raise an error if the key is not a defined variable or a function in the global scope
+                try:
+                    if callable(globals()[parameter_name]):
+                        scope.update(locals())
+                        replace_with = globals()[parameter_name](scope)
+                    else:
+                        replace_with = str(globals()[parameter_name])
+                except KeyError:
+                    raise KeyError(f"No way to fill template key: {parameter_name}")
+            
+            # replaced = context.replace(replace_str, replace_with, 1)
+            # filled_in = filled_in.replace(context, replaced, 1)
+            filled_in = make_substitution(filled_in, context, replace_str, replace_with)
 
-        if replace_with.count('\n') > 0:
-            replace_with = replace_with.replace('\n', '\n' + " " * indent_amt)
-        template = template[:start] + replace_with + template[end:]
-
-    return template
+    return format_rtl(filled_in)
 
 
 def param_table(scope: dict) -> str:
     """
     Include the used arguments table
     """
-    key_match = getattr(scope, "key_match")
-    table_replace_str = key_match.group(0)
+    table_ctx = scope.get("context")
+    table_replace_str = scope.get("replace_str")
+    scope['table_ctx'] = table_ctx
     scope['table_replace_str'] = table_replace_str
 
-    if len(key_match.groups()) > 2:
-        return key_match.group(2)
+    return ""
 
-    return table_replace_str
+
+def included_modules(scope: dict) -> str:
+    """
+    Get the list of included modules
+    """
+    cwd = Path(os.getcwd())
+    subdirs = map(lambda p: Path(*Path(p[1]).parts[-2:]), filter(lambda a: a[0].endswith("output") and Path(a[1]).parent.parent == cwd, vars(scope['args']).items()))
+    return "\n".join(map(lambda p: f"`include \"{str(p)}\"", subdirs))
 
 
 def rtl_generator(rtl_name: str, args: argparse.Namespace, scope: dict) -> str:
@@ -84,12 +118,39 @@ def rtl_generator(rtl_name: str, args: argparse.Namespace, scope: dict) -> str:
     print("\n" + "-" * os.get_terminal_size().columns)
     print(f"Generating RTL for module: {get_pretty_name(rtl_name)}")
     
-    init_msg = f"//! This file generated by [rtl-generator](https://github.com/brandonhippe/rtl-generator.git), written by Brandon Hippe\n\n//! Arguments:\n"
+    init_msg = """
+//! This file generated by [rtl-generator](https://github.com/brandonhippe/rtl-generator.git), written by Brandon Hippe
+//!
+//! Arguments:
+// #{(param_table)}
+    """.strip()
 
     with open(getattr(args, f"{rtl_name}_input"), "r", encoding='UTF-8') as f:
         template = f.read()
+    
+    newline_count = init_msg.count('\n')
+    c, ix = 0, 0
+    while c < newline_count:
+        check = template.index("\n", ix)
+        if check == -1:
+            break
+        ix = check + 1
+        c += 1
+    
+    if check > 0:
+        check = template[:ix]
+    else:
+        check = template[:]
 
-    template.replace(init_msg, "")
+    if fuzz.ratio(init_msg, check) > 80:
+        template = template.replace(check, "")
+    else:
+        init_msg += """
+// PARAMETER TABLE GOES HERE
+// #{/(param_table)}
+        """
+
+    template = f"{init_msg.strip()}\n{template}"
 
     used_args = set()
     scope['used_args'] = used_args
@@ -98,15 +159,16 @@ def rtl_generator(rtl_name: str, args: argparse.Namespace, scope: dict) -> str:
     print("\nArguments:")
     arg_table = prettytable.PrettyTable()
     arg_table.field_names = ["Argument", "Value"]
-    for arg, value in sorted([(a, vars(args)[a]) for a in used_args]):
+    for arg, value in sorted(map(lambda a: (a, getattr(args, a)), filter(args.__contains__, used_args))):
         arg_table.add_row([arg, value])
 
     arg_table.set_style(prettytable.MARKDOWN)
     arg_table_str = arg_table.get_string().splitlines()
 
-    if table_replace_str := scope.get('table_replace_str', None):
-        parameter_table = '\n'.join(map(lambda l: f"//!     {l}", arg_table_str)) + "\n\n"
-        generated = generated.replace(table_replace_str, parameter_table)
+    if table_ctx := scope.get('table_ctx', None):
+        table_replace_str = scope.get('table_replace_str')
+        table_str = '\n'.join(map(lambda l: f"//! {l}", arg_table_str))
+        generated = make_substitution(generated, table_ctx, table_replace_str, table_str)
 
     arg_table.add_row([f"{rtl_name}_output", getattr(args, f"{rtl_name}_output")])
     arg_table.set_style(prettytable.DOUBLE_BORDER)
@@ -114,4 +176,4 @@ def rtl_generator(rtl_name: str, args: argparse.Namespace, scope: dict) -> str:
 
     print(f"\nFinished generating RTL for module: {get_pretty_name(rtl_name)}")
 
-    return init_msg + generated
+    return generated

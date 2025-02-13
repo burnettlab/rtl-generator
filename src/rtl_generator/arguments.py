@@ -13,16 +13,18 @@ from .format import get_pretty_name
 from .heirarchy import get_subdirs
 
 
-def get_arguments(existing_vars: dict, arglist: List[str]) -> None:
+def update_used_args(existing_vars: dict, arglist: List[str]) -> None:
     """
     Get the value of an argument if it exists
     """
     args = existing_vars['args']
     used_args = existing_vars['used_args']
     for arg in arglist:
-        if hasattr(args, arg):
-            existing_vars[arg] = getattr(args, arg)
-            used_args.add(arg)
+        used_args.add(arg)
+        if (val := getattr(args, arg, None)) is not None:
+            existing_vars[arg] = val
+
+    existing_vars['used_args'] = used_args
 
 
 def module_in_out_args(rtl_name: str, proj_path: Path, parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
@@ -30,7 +32,7 @@ def module_in_out_args(rtl_name: str, proj_path: Path, parser: argparse.Argument
     Add input and output arguments for the module
     """
     pretty_rtl_name = get_pretty_name(rtl_name)
-    parser.add_argument(f"--{rtl_name}_input", type=str, help=f"{pretty_rtl_name} Input file path", default=str(Path(proj_path, f"template_{rtl_name}.sv")))
+    parser.add_argument(f"--{rtl_name}_input", type=str, help=f"{pretty_rtl_name} Input file path", default=str(Path(proj_path, f"{rtl_name}.sv")))
     parser.add_argument(f"--{rtl_name}_output", type=str, help=f"{pretty_rtl_name} Output file path", default=str(Path(proj_path, f"{rtl_name}.sv")))
     return parser
 
