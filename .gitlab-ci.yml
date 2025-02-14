@@ -8,7 +8,6 @@ documenter_ci:
   stage: documentation
   image: terostech/colibri:latest
   script:
-    - apt-get update && apt-get install -y rsync
     - cd dev/ble_cdr
     - teroshdl-hdl-documenter -i ble_cdr.yml -o html --dep --fsm -s all -c all -p all --outpath built_doc
   artifacts:
@@ -20,6 +19,7 @@ documenter_ci:
 pages:
   stage: documentation
   script:
+    - apt-get update && apt-get install -y rsync
     - mkdir -p public
     - rsync -av --delete dev/ble_cdr/built_doc/ public/
   artifacts:
