@@ -1,16 +1,15 @@
 import re
 from pathlib import Path
+import subprocess
 
 
 def main():
-    reqs = Path(Path(__file__).resolve().parent.parent, "requirements.txt")
     pyproj = Path(Path(__file__).resolve().parent.parent, "pyproject.toml")
-    with open(reqs, "r") as f:
-        reqs_text = f.read().splitlines()
 
     with open(pyproj, "r") as f:
         pyproj_text = f.read()
 
+    reqs_text = subprocess.run(["python3", "-m", "pip", "freeze"], capture_output=True, text=True).stdout
     deps_regex = re.compile(r"dependencies = \[.*?\]", flags=re.DOTALL | re.MULTILINE)
 
     new_deps = map(lambda x: f'\t"{x}"', reqs_text)
