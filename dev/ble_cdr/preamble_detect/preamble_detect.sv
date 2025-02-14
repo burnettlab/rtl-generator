@@ -7,7 +7,7 @@
 //! | :--------------: | :---: |
 //! |   preamble_len   |   8   |
 //! | transition_error |   1   |
-//!  
+//!    
 // #{/(param_table)}
 
 // Included Modules:

@@ -2,14 +2,14 @@
 //!
 //! ## Generator Arguments
 // #{(param_table)}
-//! 
+//!
 //! |   Argument   |  Value   |
-//! | :----------: | :------: |
+//! | ------------ | -------- |
 //! |  adc_width   |    4     |
 //! |   clk_freq   | 16000000 |
 //! |     fsym     | 1000000  |
 //! | mf_clock_rec |  False   |
-//!  
+//!
 // #{/(param_table)}
 
 // Included Modules:

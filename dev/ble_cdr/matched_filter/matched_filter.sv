@@ -9,7 +9,7 @@
 //! |    amp    |     15    |
 //! |    fsym   |  1000000  |
 //! |   ifreq   | 1250000.0 |
-//!  
+//!    
 // #{/(param_table)}
 
 // Included modules:

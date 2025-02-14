@@ -1,0 +1,28 @@
+toplevel: ble_cdr
+name: test_documentation
+files: 
+  - name: "ble_cdr.sv"
+    file_type: "verilogSource-2005"
+    is_include_file: true
+    include_path: ""
+    logical_name: ""
+  - name: "clock_recovery.sv"
+    file_type: "verilogSource-2005"
+    is_include_file: true
+    include_path: "clock_recovery"
+    logical_name: ""
+  - name: "matched_filter.sv"
+    file_type: "verilogSource-2005"
+    is_include_file: true
+    include_path: "matched_filter"
+    logical_name: ""
+  - name: "packet_sniffer.sv"
+    file_type: "verilogSource-2005"
+    is_include_file: true
+    include_path: "packet_sniffer"
+    logical_name: ""
+  - name: "preamble_detect.sv"
+    file_type: "verilogSource-2005"
+    is_include_file: true
+    include_path: "preamble_detect"
+    logical_name: ""

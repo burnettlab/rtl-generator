@@ -72,6 +72,7 @@ def template_table(existing_vars: dict) -> str:
 
     print("\nGenerated matched filter templates:")
     template_table = prettytable.PrettyTable()
+    template_table.set_style(prettytable.DOUBLE_BORDER)
     template_table.add_column("Template", ["0 Template I", "0 Template Q", "1 Template I", "1 Template Q"])
     for ix in range(len(templates[0])):
         template_table.add_column(str(ix), [low_template_i[ix], low_template_q[ix], high_template_i[ix], high_template_q[ix]], align='r')

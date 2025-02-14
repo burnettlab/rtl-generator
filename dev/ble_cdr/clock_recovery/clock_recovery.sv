@@ -12,7 +12,7 @@
 //! |    ifreq     | 1250000.0 |
 //! | mf_clock_rec |   False   |
 //! |  tau_shift   |     11    |
-//!  
+//!    
 // #{/(param_table)}
 
 // Included Modules:
