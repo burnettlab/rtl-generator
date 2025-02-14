@@ -18,7 +18,7 @@ documenter_ci:
 
 pages:
   stage: documentation
-  depends:
+  dependencies:
     - documenter_ci
   script:
     - apt-get update && apt-get install -y rsync
