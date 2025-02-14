@@ -10,21 +10,14 @@ documenter_ci:
   script:
     - cd dev/ble_cdr
     - teroshdl-hdl-documenter -i ble_cdr.yml -o html --dep --fsm -s all -c all -p all --outpath built_doc
-  artifacts:
-    paths:
-      - dev/ble_cdr/built_doc
-  only:
-    - dev
-
-pages:
-  stage: documentation
-  script:
+    - cd ../..
     - apt-get update && apt-get install -y rsync
     - mkdir -p public
     - ls -lah dev/ble_cdr/built_doc
     - rsync -av --delete dev/ble_cdr/built_doc/ public/
   artifacts:
     paths:
+      - dev/ble_cdr/built_doc
       - public
   only:
     - dev
