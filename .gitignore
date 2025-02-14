@@ -2,3 +2,6 @@
 *__pycache__
 .venv
 !*/.vscode
+
+# Ignore for now
+.gitlab-ci.yml
