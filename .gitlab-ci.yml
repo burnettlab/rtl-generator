@@ -21,7 +21,7 @@ pages:
   script:
     - apt-get update && apt-get install -y rsync
     - mkdir -p public
-    - ls -lah dev/cdr/built_doc
+    - ls -lah dev/ble_cdr/built_doc
     - rsync -av --delete dev/ble_cdr/built_doc/ public/
   artifacts:
     paths:
