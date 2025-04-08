@@ -3,12 +3,12 @@
 //! ## Generator Arguments
 // #{(param_table)}
 //!
-//! |   Argument   |  Value   |
-//! | ------------ | -------- |
-//! |  adc_width   |    4     |
-//! |   clk_freq   | 16000000 |
-//! |     fsym     | 1000000  |
-//! | mf_clock_rec |  False   |
+//!|   Argument   |  Value   |
+//!| :----------: | :------: |
+//!|  adc_width   |    4     |
+//!|   clk_freq   | 16000000 |
+//!|     fsym     | 1000000  |
+//!| mf_clock_rec |  False   |
 //!
 // #{/(param_table)}
 
@@ -94,6 +94,7 @@ module ble_cdr #(
 
       .symbol_clk(symbol_clk)
   );
+
   // #{/(instantiate_clock_recovery)}
 
   always_comb begin

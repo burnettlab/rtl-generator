@@ -2,16 +2,16 @@
 //!
 //! ## Generator Arguments
 // #{(param_table)}
-//! 
-//! |   Argument   |   Value   |
-//! | :----------: | :-------: |
-//! |  adc_width   |     4     |
-//! |   clk_freq   |  16000000 |
-//! |   ek_shift   |     2     |
-//! |     fsym     |  1000000  |
-//! |    ifreq     | 1250000.0 |
-//! | mf_clock_rec |   False   |
-//! |  tau_shift   |     11    |
+//!
+//!|   Argument   |   Value   |
+//!| :----------: | :-------: |
+//!|  adc_width   |     4     |
+//!|   clk_freq   |  16000000 |
+//!|   ek_shift   |     2     |
+//!|     fsym     |  1000000  |
+//!|    ifreq     | 1250000.0 |
+//!| mf_clock_rec |   False   |
+//!|  tau_shift   |     11    |
 //!    
 // #{/(param_table)}
 

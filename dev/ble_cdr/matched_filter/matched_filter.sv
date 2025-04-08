@@ -2,13 +2,13 @@
 //!
 //! ## Generator Arguments
 // #{(param_table)}
-//! 
-//! |  Argument |   Value   |
-//! | :-------: | :-------: |
-//! | adc_width |     4     |
-//! |    amp    |     15    |
-//! |    fsym   |  1000000  |
-//! |   ifreq   | 1250000.0 |
+//!
+//!|  Argument |   Value   |
+//!| :-------: | :-------: |
+//!| adc_width |     4     |
+//!|    amp    |     15    |
+//!|    fsym   |  1000000  |
+//!|   ifreq   | 1250000.0 |
 //!    
 // #{/(param_table)}
 

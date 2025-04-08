@@ -2,9 +2,9 @@
 //!
 //! ## Generator Arguments
 // #{(param_table)}
-//! 
-//! | Argument | Value |
-//! | :------: | :---: |
+//!
+//!| Argument | Value |
+//!| :------: | :---: |
 //!    
 // #{/(param_table)}
 

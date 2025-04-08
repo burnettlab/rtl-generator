@@ -46,45 +46,52 @@ def define_clock_recovery_type(existing_vars: dict) -> str:
 
 def instantiate_clock_recovery(existing_vars: dict) -> str:
     update_used_args(existing_vars, ['mf_clock_rec'])
-    rtl = """// Clock recovery stuff
-    clock_recovery #(
-        .SAMPLE_RATE(SAMPLE_RATE)
-    ) cr (
-        .clk(~clk),
-        .en(en),
-        .resetn(resetn),
 
-        .mf_bit(demod_bit),
+    if existing_vars["mf_clock_rec"]:
+        rtl = """
+// Clock recovery stuff
+clock_recovery #(
+    .SAMPLE_RATE(SAMPLE_RATE)
+) cr (
+    .clk(~clk),
+    .en(en),
+    .resetn(resetn),
 
-        .symbol_clk(symbol_clk)
-    );""" if existing_vars['mf_clock_rec'] else \
-    """// Preamble Detection stuff
-    logic preamble_detected;
-    preamble_detect #(
-        .SAMPLE_RATE(SAMPLE_RATE)
-    ) pd (
-        .clk(clk),
-        .resetn(resetn),
-        .en(en),
+    .mf_bit(demod_bit),
 
-        .data_bit(demod_bit),
-        .preamble_detected(preamble_detected)
-    );
+    .symbol_clk(symbol_clk)
+);
+        """
+    else:
+        rtl = """
+// Preamble Detection stuff
+logic preamble_detected;
+preamble_detect #(
+    .SAMPLE_RATE(SAMPLE_RATE)
+) pd (
+    .clk(clk),
+    .resetn(resetn),
+    .en(en),
 
-    // Clock recovery stuff
-    clock_recovery #(
-        .SAMPLE_RATE(SAMPLE_RATE),
-        .DATA_WIDTH(DATA_WIDTH)
-    ) cr (
-        .clk(clk),
-        .resetn(resetn),
-        .en(en),
+    .data_bit(demod_bit),
+    .preamble_detected(preamble_detected)
+);
 
-        .i_data(i_bpf),
-        .q_data(q_bpf),
-        .preamble_detected(preamble_detected),
+// Clock recovery stuff
+clock_recovery #(
+    .SAMPLE_RATE(SAMPLE_RATE),
+    .DATA_WIDTH(DATA_WIDTH)
+) cr (
+    .clk(clk),
+    .resetn(resetn),
+    .en(en),
 
-        .symbol_clk(symbol_clk)
-    );"""
+    .i_data(i_bpf),
+    .q_data(q_bpf),
+    .preamble_detected(preamble_detected),
+
+    .symbol_clk(symbol_clk)
+);
+        """
     
-    return fill_in_template(rtl, existing_vars.get('args', None), existing_vars)
+    return fill_in_template(rtl.strip('\n'), existing_vars.get('args', None), existing_vars)
