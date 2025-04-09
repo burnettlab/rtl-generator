@@ -86,8 +86,8 @@ Please cite RTL-Generator by the following publication:
 ```
 @article{rtl-generator,
   author={Hippe, Brandon P. and Burnett, David C.},
-  journal={LATTE '25},
-  title={A Python-based RTL Generator for Low-IF 2-FSK Wireless Communication Systems},
+  journal={WOVEN '25},
+  title={A Python-based RTL Generator Demonstrated on a Low-IF 2-FSK Wireless Communication System},
   year={2025},
   pages={1-3},
 }

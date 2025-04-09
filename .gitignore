@@ -1,11 +1,7 @@
 # Python modules
 *__pycache__
 .venv
-requirements.txt
+!*/.vscode
 
-# Development directories
-/dev
-.vscode
-
-# Distribution directories
-dist
+# Ignore for now
+.gitlab-ci.yml
