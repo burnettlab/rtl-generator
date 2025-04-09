@@ -11,7 +11,7 @@ RTL-Generator is built to enable easy and flexible parameterization of RTL code.
 
 ## Installation
 
-For now, this program can be tested by running `python3 -m pip install -e .` from a clone of this directory, and running any of `gen-rtl setup`, `gen-rtl update`, or `gen-rtl generate`.
+RTL-Generator can be installed using `python -m pip install rtl-generator`, and running any of `gen-rtl setup`, `gen-rtl update`, or `gen-rtl generate`.
 
 RTL-generator also depends on [Verible](https://github.com/chipsalliance/verible) to format output RTL. Follow Verible's install directions and ensure `which verible-verilog-format` outputs the path to the Verible formatter executable.
 
