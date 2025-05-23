@@ -4,7 +4,7 @@ import subprocess
 
 
 def main():
-    pyproj = Path(Path(__file__).resolve().parent.parent, "pyproject.toml")
+    pyproj = Path(__file__).resolve().parent.parent / "pyproject.toml"
 
     with open(pyproj, "r") as f:
         pyproj_text = f.read()
@@ -12,7 +12,7 @@ def main():
     reqs_text = subprocess.run(["python3", "-m", "pip", "freeze"], capture_output=True, text=True).stdout
     deps_regex = re.compile(r"dependencies = \[.*?\]", flags=re.DOTALL | re.MULTILINE)
 
-    new_deps = map(lambda x: f'\t"{x}"', reqs_text)
+    new_deps = map(lambda x: f'\t"{x}"', reqs_text.splitlines())
     new_deps = "dependencies = [\n" + ",\n".join(new_deps) + "\n]"
 
     if deps_regex.search(pyproj_text):
