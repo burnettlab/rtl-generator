@@ -78,7 +78,6 @@ There are other useful methods that this module exposes, though documentation/de
 
 Development on this project is done on the `dev` branch.
 
-<!--
 ## Attribution and Related Publications:
 
 Please cite RTL-Generator by the following publication:
@@ -86,10 +85,10 @@ Please cite RTL-Generator by the following publication:
 ```
 @article{rtl-generator,
   author={Hippe, Brandon P. and Burnett, David C.},
-  journal={WOVEN '25},
+  journal={2025 Workshop on Conventions, Tools, and Ideas in Physical Design (WOVEN)},
   title={A Python-based RTL Generator Demonstrated on a Low-IF 2-FSK Wireless Communication System},
   year={2025},
   pages={1-3},
+  note={Accepted, to appear},
 }
 ```
--->
