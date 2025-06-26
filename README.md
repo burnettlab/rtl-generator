@@ -9,11 +9,21 @@ This repository contains an RTL-Generator and flexible parameterizer written in 
 
 RTL-Generator is built to enable easy and flexible parameterization of RTL code. Currently, only Verilog/SystemVerilog is supported (due to use of formatter). Using RTL-Generator with an existing or new RTL project is easy: simply run `gen-rtl setup` at the top-level of your heirarchy, add your configuration options to `options.yml`, add parameter keys to the RTL, and add any more complex parameterization to a `gen_<module_name>.py` script. `gen-rtl generate` will then automatically generate your parameterized RTL project!
 
+### Supported Hardware Description Languages
+
+As of the current version, rtl-generator only supports Verilog/SystemVerilog. We will gladly accept contributions of support for other languages, provided they do not break the current language support or require any major modifications to the basic framework. Support for another language would require:
+
+* Regular Expression comment matching for paramaterizer tags consistent with Verilog/SystemVerilog implementation (see [generator.py](src/rtl_generator/generator.py)).
+* Formatter implementation (see [format.py](src/rtl_generator/format.py) for example).
+
+A class-based approach to language support has not been implemented yet, but is likely a good solution for handling different HDL's more efficiently.
+
 ## Installation
 
-RTL-Generator can be installed using `python -m pip install rtl-generator`, and running any of `gen-rtl setup`, `gen-rtl update`, or `gen-rtl generate`.
+RTL-Generator can be installed using `python3 -m pip install rtl-generator`, and running any of `gen-rtl setup`, `gen-rtl update`, or `gen-rtl generate`.
 
-RTL-generator also depends on [Verible](https://github.com/chipsalliance/verible) to format output RTL. Follow Verible's install directions and ensure `which verible-verilog-format` outputs the path to the Verible formatter executable.
+RTL-generator also depends on [Verible](https://github.com/chipsalliance/verible) to format output RTL. Follow Verible's install directions and ensure Verible is on your system's PATH.
+
 
 ## Usage
 
@@ -51,9 +61,9 @@ The generator finds parameterizable sections by looking for instances of the tag
 
 The generator determines what to replace parameterized sections with by searching for a match of `parameter_name` in the following order:
 
-- Variable in current Generator Helper scope: replaces the section with the value of the variable
+- Variable in current Generator Helper scope: replaces the section with the value of the variable, converted to a string
 - Function in the current Generator Helper scope: replaces the section with the returned string from calling the function
-- Variable in the global scope (this includes passed arguments): replaces the section with the value of the variable
+- Variable in the global scope (this includes passed arguments): replaces the section with the value of the variable, converted to a string
 - Function in the global scope: replaces the section with the returned string from calling the function
 
 A `KeyError` is raised and generated RTL not written if `parameter_name` is not found in any of the above locations.
@@ -74,9 +84,45 @@ These scripts are where more complex parameterization is intended to take place:
 
 There are other useful methods that this module exposes, though documentation/development of these is ongoing. Examples can be seen in the example Bluetooth Low Energy Digital Baseband on the `dev` branch.
 
+
+## Example usage
+
+Consider the following project structure:
+
+- example
+    - example_submodule
+        - example_submodule.sv
+    - example.sv
+
+After running `setup`, the directory structure will now look like:
+
+- example
+    - example_submodule
+        - example_submodule.sv
+        - *gen_example_submodule.py*
+    - example.sv
+    - *gen_example.py*
+    - *options.yml*
+
+If you were to add another submodule, for example, a submodule of `example_submodule`, you would then run `update` to introduce this module to the `gen-rtl` heirarchy:
+
+- example
+    - example_submodule
+        - deeper_submodule
+            - deeper_submodule.sv
+            - *gen_deeper_submodule.py*
+        - example_submodule.sv
+        - *gen_example_submodule.py*
+    - example.sv
+    - *gen_example.py*
+    - *options.yml*
+
+Running `generate` will now work at any level of the heirarchy. All CLI arguments will be added along with their default values from the top-level `options.yml` file, and all submodules will also be generated alongside the module being generated. For example, running `generate` from the `example_submodule` directory would generate `example_submodule.sv` and `deeper_submodule.sv`, but not `example.sv`. Running `generate` from the `example` directory would generate the entire heirarchy.
+
 ## Development
 
 Development on this project is done on the `dev` branch.
+
 
 ## Attribution and Related Publications:
 
