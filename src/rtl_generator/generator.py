@@ -2,28 +2,33 @@
 Handle RTL generation
 """
 # Necessary imports, path setup, and global variables
-import argparse
+import inspect
 import os
 import re
 from itertools import product
 from pathlib import Path
+from typing import Dict, Generator, Optional
+from functools import reduce
 
 import prettytable
-from rapidfuzz import fuzz
 
-from .arguments import update_used_args
-from .format import format_rtl, get_pretty_name
+from .context_manager import generator_context
+from .format import get_pretty_name
+from .header import add_headers, remove_headers
+from .heirarchy import remove_previously_included
+from .languages import Language
 
 PRESERVING_REGEXES = [
     # These regexes preserve the parameter tag that identifies the parameter
     re.compile(r"//[^\n]*#{\((?P<parameter_name>\w*)\)}\s*(?P<replace>.*?)\s*//[^\n]*#{/\((?P=parameter_name)\)}", re.MULTILINE | re.DOTALL),
-    re.compile(r"/\*[^\n]*#{\((?P<parameter_name>\w*)\)}[^\n]*\*/\s*(?P<replace>.*?)\s*/\*[^\n]*#{/\((?P=parameter_name)\)}[^\n]*\*/"),
+    re.compile(r"/\*[^\n]*#{\((?P<parameter_name>\w*)\)}[^\n]*\*/\s*(?P<replace>.*?)\s*/\*[^\n]*#{/\((?P=parameter_name)\)}[^\n]*\*/", re.MULTILINE | re.DOTALL),
 ]
 
 DESTROYING_REGEXES = [
     # These regexes destroy the parameter tag that identifies the parameter
     re.compile(r"(?P<replace>#{\((?P<parameter_name>\w+?)\)})"),
 ]
+
 
 #####################################################################################################
 # Base methods needed for all RTL generators                                                        #
@@ -32,151 +37,145 @@ def make_substitution(template: str, context: str, replace_str: str, replace_wit
     """
     Make a substitution in the context string.
     """
+    replace_with = replace_with.strip()
     assert template
     if not context or not replace_str or not replace_with:
         return template
     
-    replaced = context.replace(replace_str, replace_with, 1)
-    return template.replace(context, replaced, 1)
+    replaced = context.replace(replace_str, replace_with)
+    return template.replace(context, replaced)
 
 
-def fill_in_template(template: str, args: argparse.Namespace | None, scope: dict) -> str:
+@generator_context
+def fill_in_template(template: str, used_args: set=set(), lang: Optional[Language]=None, **kwargs) -> Generator[str, None, Dict]:
     """
     Fill in the template with the arguments and variables.
 
-    Matches using the regex "#{((\w+?))}".
-
-    Looks for the key in the arguments, variables, and global functions, in that order.
+    Looks for keys in the arguments, variables, and global functions, in that order.
     """
-    if 'args' not in scope:
-        scope['args'] = args
-
-    if 'used_args' not in scope:
-        scope['used_args'] = set()
-
-    filled_in = template[:]
-    for match_regex, preserving in list(product(PRESERVING_REGEXES, (True,))) + list(product(DESTROYING_REGEXES, (False,))):
-        for key_match in match_regex.finditer(template):
+    performed_replacements = set()
+    preserving = True
+    for match_regexes in [lang.PRESERVING_REGEXES if lang else PRESERVING_REGEXES] + [lang.DESTROYING_REGEXES if lang else DESTROYING_REGEXES]:
+        search_start_ix = 0
+        while key_matches := list(filter(None, map(lambda m: m.search(template, pos=search_start_ix), match_regexes))):
+            key_match = min(key_matches, key=lambda m: m.start())
             context = key_match.group()
             parameter_name = key_match.group("parameter_name")
             replace_str = key_match.group("replace")
 
-            if parameter_name in scope['used_args'] and not preserving:
+            if parameter_name in performed_replacements:
+                search_start_ix = key_match.end("parameter_name")
                 continue
             
-            update_used_args(scope, [parameter_name])
-            if parameter_name in scope:
-                # Key is a variable or function in this file
-                if callable(scope[parameter_name]):
-                    scope.update(locals())
-                    replace_with = scope[parameter_name](scope)
-                else:
-                    replace_with = str(scope[parameter_name])
-            else:
-                # This will raise an error if the key is not a defined variable or a function in the global scope
-                try:
-                    if callable(globals()[parameter_name]):
-                        scope.update(locals())
-                        replace_with = globals()[parameter_name](scope)
+            used_args.add(parameter_name)
+            performed_replacements.add(parameter_name)
+            replace_with = None
+            for ctx in (locals(), kwargs, globals()):
+                if parameter_name in ctx:
+                    p_res = ctx[parameter_name]
+
+                    if callable(p_res):
+                        # If the parameter is a function, call it with the current context
+                        ignore_args = ["used_args", "lang", "kwargs"]
+                        local_vars = vars()
+                        func_args = dict(map(lambda k: (k, local_vars[k]), filter(lambda k: k not in ignore_args and k not in ctx and k in local_vars, inspect.signature(p_res).parameters)))
+                        func_args.update(dict(filter(lambda e: e[0] not in ignore_args, ctx.items())))
+                        func_args.update(dict(filter(lambda e: e[0] not in ignore_args, kwargs.items())))
+                        replace_with = p_res(used_args=used_args, lang=lang, **func_args)
                     else:
-                        replace_with = str(globals()[parameter_name])
-                except KeyError:
-                    raise KeyError(f"No way to fill template key: {parameter_name}")
+                        # If the parameter is not a function, just use its value
+                        replace_with = str(p_res)
+                    break
+
+            assert replace_with is not None, f"No way to fill template key: {parameter_name}"            
+            template = make_substitution(template, context, replace_str, replace_with)
             
-            # replaced = context.replace(replace_str, replace_with, 1)
-            # filled_in = filled_in.replace(context, replaced, 1)
-            filled_in = make_substitution(filled_in, context, replace_str, replace_with)
+            if preserving:
+                search_start_ix = key_match.end("parameter_name")
+        
+        preserving = not preserving
 
-    return format_rtl(filled_in)
+    yield template
+    return_dict = vars().get("__returned_dict__", {})
+    return_dict["used_args"] = used_args | return_dict.get("used_args", set())
+    return return_dict
 
 
-def param_table(scope: dict) -> str:
+@generator_context
+def param_table(context: str, replace_str: str, **kwargs) -> Generator[str, None, Dict]:
     """
-    Include the used arguments table
+    Include the used arguments param_table
     """
-    table_ctx = scope.get("context")
-    table_replace_str = scope.get("replace_str")
-    scope['table_ctx'] = table_ctx
-    scope['table_replace_str'] = table_replace_str
+    yield ""
+    return dict(
+        param_table_ctx=context[:],
+        param_table_replace_str=replace_str[:],
+    )
 
-    return ""
 
-
-def init_msg(template: str) -> str:
+@generator_context
+def included_modules(context: str, replace_str: str, **kwargs) -> Generator[str, None, Dict]:
     """
-    Generate the info text for the top of the generated RTL
+    Include the list of included modules
     """
-    init_msg = """
-//! This file generated by [rtl-generator](https://github.com/burnettlab/rtl-generator.git), written by Brandon Hippe
-//!
-//! ## Generator Arguments
-// #{(param_table)}
-    """.strip()
-
-    newline_count = init_msg.count('\n')
-    c, ix = 0, 0
-    while c < newline_count:
-        check = template.index("\n", ix)
-        if check == -1:
-            break
-        ix = check + 1
-        c += 1
-    
-    if check > 0:
-        check = template[:ix]
-    else:
-        check = template[:]
-
-    if fuzz.ratio(init_msg, check) > 80:
-        template = template.replace(check, "")
-    else:
-        init_msg += """
-// PARAMETER TABLE GOES HERE
-// #{/(param_table)}
-        """
-
-    return f"{init_msg.strip()}\n{template}"
+    yield ""
+    return dict(
+        included_modules_ctx=context[:],
+        included_modules_replace_str=replace_str[:],
+    )
 
 
-def included_modules(scope: dict) -> str:
-    """
-    Get the list of included modules
-    """
-    cwd = Path(os.getcwd())
-    subdirs = map(lambda p: Path(*Path(p[1]).parts[-2:]), filter(lambda a: a[0].endswith("output") and Path(a[1]).parent.parent == cwd, vars(scope['args']).items()))
-    return "\n".join(map(lambda p: f"`include \"{str(p)}\"", subdirs))
-
-
-def rtl_generator(rtl_name: str, args: argparse.Namespace, scope: dict) -> str:
+def rtl_generator(rtl_name: str, lang: Optional[Language]=None, **kwargs) -> str:
     """
     Generate RTL code
     """
     print("\n" + "-" * os.get_terminal_size().columns)
     print(f"Generating RTL for module: {get_pretty_name(rtl_name)}")
-    
-    with open(getattr(args, f"{rtl_name}_input"), "r", encoding='UTF-8') as f:
-        template = init_msg(f.read())
 
     used_args = set()
-    scope['used_args'] = used_args
-    generated = fill_in_template(template, args, scope)
+    comment_start = lang.single_line_comment() if lang else "//"
 
-    print("\nArguments:")
+    with open(kwargs[f"{rtl_name}_input"], "r", encoding='UTF-8') as f:
+        template = remove_previously_included(f.read())
+    
+    template = remove_headers(template, lang=lang, **kwargs)
+    template = add_headers(template, lang=lang, **kwargs)
+    generated = fill_in_template(template, lang=lang, used_args=used_args, **kwargs)
+    returned_dict = vars().get("__returned_dict__", {})
+
+    if included_modules_ctx := returned_dict.get('included_modules_ctx', None):
+        included_modules_replace_str = returned_dict['included_modules_replace_str']
+        included_submodules = list(filter(lambda k: f"{k}_output" in kwargs, lang.find_instantiated_submodules(generated) if lang else []))
+        if included_submodules:
+            included_modules_str = f"{comment_start}! ## Included modules:\n"
+            subdirs = dict(map(lambda k: (k, Path(*Path(kwargs.get(f"{k}_output")).parts[-2:])), included_submodules))
+            included_modules_str += '\n'.join(map(lambda m: f"{lang.include_submodule(subdirs[m])}\t{comment_start}! - [{get_pretty_name(m)}]({subdirs[m].with_suffix('.md')})", included_submodules))
+            included_modules_str += "\n"
+        else:
+            included_modules_str = f"{comment_start} INCLUDED MODULES GO HERE"
+
+        generated = make_substitution(generated, included_modules_ctx, included_modules_replace_str, included_modules_str)
+
     arg_table = prettytable.PrettyTable()
     arg_table.field_names = ["Argument", "Value"]
-    for arg, value in sorted(map(lambda a: (a, vars(args)[a]), filter(args.__contains__, used_args))):
+    for arg, value in sorted(map(lambda a: (a, kwargs[a]), filter(lambda a: a in kwargs and not callable(kwargs[a]), used_args))):
         arg_table.add_row([arg, value])
 
     arg_table.set_style(prettytable.MARKDOWN)
+    if param_table_ctx := returned_dict.get('param_table_ctx', None):
+        param_table_replace_str = returned_dict['param_table_replace_str']
+        if len(arg_table.rows):
+            param_table_str = f"{comment_start}! ## Generator arguments:\n"
+            param_table_str += '\n'.join(map(lambda l: f"{comment_start}! {l}", arg_table.get_string().splitlines()))
+        else:
+            param_table_str = f"{comment_start} PARAMETER TABLE GOGES HERE"
 
-    if table_ctx := scope.get('table_ctx', None):
-        table_replace_str = scope.get('table_replace_str')
-        table_str = '\n'.join(map(lambda l: f"//!{l}", [""] + arg_table.get_string().splitlines() + [""]))
-        generated = make_substitution(generated, table_ctx, table_replace_str, table_str)
+        generated = make_substitution(generated, param_table_ctx, param_table_replace_str, param_table_str)
 
-    arg_table.add_row([f"{rtl_name}_output", getattr(args, f"{rtl_name}_output")])
+    arg_table.add_row([f"{rtl_name}_output", kwargs[f"{rtl_name}_output"]])
     arg_table.set_style(prettytable.DOUBLE_BORDER)
+    print("\nArguments:")
     print(arg_table.get_string())
     print(f"\nFinished generating RTL for module: {get_pretty_name(rtl_name)}")
 
-    return generated
+    return lang.format_rtl(generated)

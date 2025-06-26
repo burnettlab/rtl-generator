@@ -5,7 +5,7 @@ import argparse
 import builtins
 from importlib import import_module
 from pathlib import Path
-from typing import List
+from typing import Tuple, Dict
 
 import yaml
 
@@ -13,18 +13,11 @@ from .format import get_pretty_name
 from .heirarchy import get_subdirs
 
 
-def update_used_args(existing_vars: dict, arglist: List[str]) -> None:
-    """
-    Get the value of an argument if it exists
-    """
-    args = existing_vars['args']
-    used_args = existing_vars['used_args']
-    for arg in arglist:
-        used_args.add(arg)
-        if (val := getattr(args, arg, None)) is not None:
-            existing_vars[arg] = val
-
-    existing_vars['used_args'] = used_args
+def update_scope(updates: dict, scope: dict) -> Tuple[Dict, Dict]:
+    for k in filter(lambda k: k in updates, scope.keys()):
+        scope[k] = updates.pop(k)
+    
+    return scope, updates
 
 
 def module_in_out_args(rtl_name: str, proj_path: Path, parser: argparse.ArgumentParser) -> argparse.ArgumentParser:

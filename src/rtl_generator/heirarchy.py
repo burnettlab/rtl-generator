@@ -6,40 +6,58 @@ import re
 from pathlib import Path
 from typing import Dict, List
 
+from .languages import Language
+from .header import remove_headers
+from .format import get_pretty_name
 
-def replace_includes(generated_rtl: str, submod_rtls: Dict[str, str]) -> str:
+
+def replace_included(generated_rtl: str, submod_rtls: Dict[str, str], lang: Language, top_level: bool=True, **kwargs) -> str:
     """
     Recursively replaces include statements in the generated RTL code with the contents of the included file.
 
     If an included file exists in generated RTL, includes generated RTL for that file.
     Otherwise, includes the contents of the existing file.
     """
-    while True:
-        match = re.search(r"`include \"(.+?)\"", generated_rtl)
-        if match is None:
-            break
+    generated_rtl = generated_rtl.strip()
+    if top_level:
+        generated_rtl += f"\n\n{lang.single_line_comment()}" + " #{(previously_included)}"
+    first_time = top_level
+    while include_match := re.search(lang.include_submodule(in_regex=True), generated_rtl):
+        start, end = include_match.span()
+        last_newline = generated_rtl.rfind('\n', 0, start)
+        if last_newline < start:
+            start = last_newline
 
-        start, end = match.span()
-        start = generated_rtl.rfind('\n', 0, start)
+        include_file = include_match.group(1)
+        submod_name = str(Path(include_file).stem)
 
-        include_file = match.group(1)
-        submod_name = include_file.split('/')[-1].replace('.sv', '')
-
-        if f"{submod_name}.gen_{submod_name}" in submod_rtls:
-            include_rtl = submod_rtls[f"{submod_name}.gen_{submod_name}"]
-        else:
-            with open(include_file, "r") as f:
-                include_rtl = f.read()
+        generated_rtl = f"{generated_rtl[:start].strip()}\n{generated_rtl[end:].strip()}\n"
+        if not first_time:
+            generated_rtl += "\n"
         
-            pdir = os.getcwd()
-            os.chdir(Path(include_file).parent)
-            include_rtl = replace_includes(include_rtl, submod_rtls)
-            os.chdir(pdir)
-        
-        generated_rtl = generated_rtl[:start] + generated_rtl[end:] + f"\n{include_rtl}"
+        generated_rtl += f"{lang.single_line_comment()}! ## {get_pretty_name(submod_name)}:\n"
+        include_rtl = replace_included(submod_rtls[submod_name], submod_rtls, lang, top_level=False, **kwargs)
+        generated_rtl += remove_headers(include_rtl, lang=lang, **kwargs)
+        first_time = False
         print(f"Included {submod_name}")
 
-    return generated_rtl
+    if top_level:
+        return generated_rtl.strip() + f"\n{lang.single_line_comment()}" + " #{/(previously_included)}\n"
+    else:
+        return generated_rtl.strip()
+
+
+def remove_previously_included(rtl: str, **kwargs) -> str:
+    """
+    Remove the previously included submodules
+    """
+    previously_included_re = re.compile(r"\n[^\n]*?#{\(previously_included\)}[^\n]*\s*.*?\s*#{/\(previously_included\)}[^\n]*", re.MULTILINE | re.DOTALL)
+    if m := previously_included_re.search(rtl):
+        context = m.group()
+        replaced = context.replace(context, "")
+        rtl = rtl.replace(context, replaced)
+
+    return rtl
 
 
 def get_subdirs(module_path: str | Path) -> List[Path]:
