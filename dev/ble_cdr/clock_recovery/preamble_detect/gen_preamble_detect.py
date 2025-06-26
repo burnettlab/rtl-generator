@@ -1,11 +1,14 @@
 """
-Generate #{(top_level_name)} RTL code
+Generate Preamble Detect RTL code
 """
+
+import sys
 from pathlib import Path
 from typing import Generator
 
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 from rtl_generator import *
+from gen_clock_recovery import *
 
-YAML_PATH = Path(Path(__file__).parent, "options.yml").resolve()
 
 # User-defined imports, functions, and globals
